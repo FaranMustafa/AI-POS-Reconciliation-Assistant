@@ -4,15 +4,31 @@ from imports.models import (
     AuditEvent,
     CanonicalTransactionRecord,
     ImportFile,
+    Membership,
     ReconciliationIssueRecord,
     ReconciliationRun,
+    Tenant,
 )
+
+
+@admin.register(Tenant)
+class TenantAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "created_at")
+    search_fields = ("name", "slug")
+    prepopulated_fields = {"slug": ("name",)}
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "user", "role", "created_at")
+    list_filter = ("role", "created_at")
+    search_fields = ("tenant__name", "user__username", "user__email")
 
 
 @admin.register(ImportFile)
 class ImportFileAdmin(admin.ModelAdmin):
-    list_display = ("original_filename", "source_type", "status", "file_size", "created_at")
-    list_filter = ("source_type", "status", "created_at")
+    list_display = ("original_filename", "tenant", "source_type", "status", "file_size", "created_at")
+    list_filter = ("tenant", "source_type", "status", "created_at")
     search_fields = ("original_filename", "error_message")
 
 
@@ -25,8 +41,8 @@ class CanonicalTransactionRecordAdmin(admin.ModelAdmin):
 
 @admin.register(ReconciliationRun)
 class ReconciliationRunAdmin(admin.ModelAdmin):
-    list_display = ("id", "status", "created_at", "completed_at")
-    list_filter = ("status", "created_at")
+    list_display = ("id", "tenant", "status", "created_at", "completed_at")
+    list_filter = ("tenant", "status", "created_at")
     filter_horizontal = ("import_files",)
 
 
@@ -39,7 +55,6 @@ class ReconciliationIssueRecordAdmin(admin.ModelAdmin):
 
 @admin.register(AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
-    list_display = ("action", "actor_label", "created_at")
-    list_filter = ("action", "created_at")
+    list_display = ("action", "tenant", "actor_label", "created_at")
+    list_filter = ("tenant", "action", "created_at")
     search_fields = ("actor_label",)
-

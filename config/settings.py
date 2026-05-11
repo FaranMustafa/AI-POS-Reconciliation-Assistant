@@ -1,11 +1,18 @@
 from pathlib import Path
 
+from decouple import config
+
+from config.env import build_database_config, parse_allowed_hosts
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "dev-only-change-me"
-DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+SECRET_KEY = config("SECRET_KEY", default="dev-only-change-me")
+DEBUG = config("DEBUG", default=True, cast=bool)
+ALLOWED_HOSTS = parse_allowed_hosts(
+    config("ALLOWED_HOSTS", default="localhost,127.0.0.1")
+)
+LOGIN_URL = "/admin/login/"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -48,12 +55,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+DATABASES = {"default": build_database_config(config("DATABASE_URL", default=""), BASE_DIR)}
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

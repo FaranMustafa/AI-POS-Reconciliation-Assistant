@@ -230,15 +230,15 @@ Expected: migrations are created and tests pass.
 - Create: `templates/dashboard/run_detail.html`
 - Test: `dashboard/tests/test_views.py`
 
-- [ ] **Step 1: Add upload form tests**
+- [x] **Step 1: Add upload form tests**
 
 Test file upload, source type selection, import parsing, reconciliation run creation, and redirect to run detail.
 
-- [ ] **Step 2: Implement upload view**
+- [x] **Step 2: Implement upload view**
 
 Accept CSV files, route to the selected importer, persist transactions, run reconciliation, and show issues.
 
-- [ ] **Step 3: Verify web flow**
+- [x] **Step 3: Verify web flow**
 
 Run:
 
@@ -255,7 +255,7 @@ Expected: upload and run detail tests pass.
 - Modify: `dashboard/views.py`
 - Test: `reconciliation/tests/test_exports.py`
 
-- [ ] **Step 1: Add CSV export tests**
+- [x] **Step 1: Add CSV export tests**
 
 Headers:
 
@@ -263,11 +263,11 @@ Headers:
 Severity,Category,Title,Evidence,Recommended Action,Related Transactions
 ```
 
-- [ ] **Step 2: Implement export**
+- [x] **Step 2: Implement export**
 
 Escape commas, quotes, and newlines correctly. Join evidence with ` | `.
 
-- [ ] **Step 3: Verify export**
+- [x] **Step 3: Verify export**
 
 Run:
 
@@ -284,15 +284,15 @@ Expected: export tests pass.
 - Create: `docs/operations/deployment-checklist.md`
 - Modify: `config/settings.py`
 
-- [ ] **Step 1: Add environment configuration**
+- [x] **Step 1: Add environment configuration**
 
 Use `python-decouple` for `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, and `DATABASE_URL`.
 
-- [ ] **Step 2: Add production checklist**
+- [x] **Step 2: Add production checklist**
 
 Cover database migration, static files, object storage, auth, backups, log retention, and smoke tests.
 
-- [ ] **Step 3: Final verification**
+- [x] **Step 3: Final verification**
 
 Run:
 

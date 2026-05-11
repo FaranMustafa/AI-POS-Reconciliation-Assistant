@@ -1,6 +1,48 @@
 from django.db import models
 
 
+class Tenant(models.Model):
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = _slugify_name(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class Membership(models.Model):
+    class Role(models.TextChoices):
+        OWNER = "owner", "Owner"
+        STAFF = "staff", "Staff"
+        ACCOUNTANT = "accountant", "Accountant"
+
+    tenant = models.ForeignKey(Tenant, related_name="memberships", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        "auth.User",
+        related_name="memberships",
+        on_delete=models.CASCADE,
+    )
+    role = models.CharField(max_length=24, choices=Role.choices, default=Role.STAFF)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "user"], name="unique_tenant_user_membership")
+        ]
+
+    def __str__(self):
+        return f"{self.user} in {self.tenant} ({self.role})"
+
+
 class ImportFile(models.Model):
     class SourceType(models.TextChoices):
         POS_DAILY = "pos_daily", "POS daily"
@@ -15,6 +57,13 @@ class ImportFile(models.Model):
         PROCESSED = "processed", "Processed"
         FAILED = "failed", "Failed"
 
+    tenant = models.ForeignKey(
+        Tenant,
+        related_name="import_files",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     source_type = models.CharField(max_length=32, choices=SourceType.choices)
     original_filename = models.CharField(max_length=255)
     content_type = models.CharField(max_length=120)
@@ -93,6 +142,13 @@ class ReconciliationRun(models.Model):
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
 
+    tenant = models.ForeignKey(
+        Tenant,
+        related_name="reconciliation_runs",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     import_files = models.ManyToManyField(ImportFile, related_name="reconciliation_runs", blank=True)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDING)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -165,6 +221,13 @@ class AuditEvent(models.Model):
         ISSUE_DISMISSED = "issue_dismissed", "Issue dismissed"
         EXPORT_CREATED = "export_created", "Export created"
 
+    tenant = models.ForeignKey(
+        Tenant,
+        related_name="audit_events",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     action = models.CharField(max_length=48, choices=Action.choices)
     actor_label = models.CharField(max_length=120, default="system")
     import_file = models.ForeignKey(
@@ -200,3 +263,7 @@ class AuditEvent(models.Model):
     def __str__(self):
         return f"{self.action} by {self.actor_label}"
 
+
+def _slugify_name(value):
+    slug = "".join(character.lower() if character.isalnum() else "-" for character in value)
+    return "-".join(part for part in slug.split("-") if part)

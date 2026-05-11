@@ -1,19 +1,37 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from imports.models import (
     AuditEvent,
     CanonicalTransactionRecord,
     ImportFile,
+    Membership,
     ReconciliationIssueRecord,
     ReconciliationRun,
+    Tenant,
 )
 
 
 class PersistenceModelTests(TestCase):
+    def test_tenant_membership_connects_users_to_store_data(self):
+        user = get_user_model().objects.create_user(username="owner", password="password")
+        tenant = Tenant.objects.create(name="Main Street Fuel")
+
+        membership = Membership.objects.create(
+            tenant=tenant,
+            user=user,
+            role=Membership.Role.OWNER,
+        )
+
+        self.assertEqual(user.memberships.get(), membership)
+        self.assertEqual(tenant.memberships.get(), membership)
+
     def test_import_file_owns_canonical_transactions(self):
+        tenant = Tenant.objects.create(name="Main Street Fuel")
         import_file = ImportFile.objects.create(
+            tenant=tenant,
             source_type=ImportFile.SourceType.POS_DAILY,
             original_filename="pos-daily.csv",
             content_type="text/csv",
@@ -40,14 +58,19 @@ class PersistenceModelTests(TestCase):
         self.assertEqual(import_file.transactions.first(), transaction)
 
     def test_reconciliation_run_owns_issues(self):
+        tenant = Tenant.objects.create(name="Main Street Fuel")
         import_file = ImportFile.objects.create(
+            tenant=tenant,
             source_type=ImportFile.SourceType.CARD_BANK,
             original_filename="card-bank.csv",
             content_type="text/csv",
             file_size=256,
             status=ImportFile.Status.PROCESSED,
         )
-        run = ReconciliationRun.objects.create(status=ReconciliationRun.Status.COMPLETED)
+        run = ReconciliationRun.objects.create(
+            tenant=tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
         run.import_files.add(import_file)
 
         issue = ReconciliationIssueRecord.objects.create(
@@ -65,7 +88,9 @@ class PersistenceModelTests(TestCase):
         self.assertEqual(run.issues.first(), issue)
 
     def test_audit_event_records_action_context(self):
+        tenant = Tenant.objects.create(name="Main Street Fuel")
         import_file = ImportFile.objects.create(
+            tenant=tenant,
             source_type=ImportFile.SourceType.FUEL_INVOICE,
             original_filename="fuel.csv",
             content_type="text/csv",
@@ -74,6 +99,7 @@ class PersistenceModelTests(TestCase):
         )
 
         audit_event = AuditEvent.objects.create(
+            tenant=tenant,
             action=AuditEvent.Action.IMPORT_CREATED,
             import_file=import_file,
             actor_label="system",
@@ -83,4 +109,3 @@ class PersistenceModelTests(TestCase):
         self.assertEqual(audit_event.import_file, import_file)
         self.assertEqual(audit_event.action, AuditEvent.Action.IMPORT_CREATED)
         self.assertEqual(audit_event.metadata["source_type"], ImportFile.SourceType.FUEL_INVOICE)
-
