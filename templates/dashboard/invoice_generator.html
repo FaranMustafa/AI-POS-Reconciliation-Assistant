@@ -9,7 +9,11 @@
   <body class="bg-slate-50 text-slate-950">
     <main class="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8">
       <header class="border-b border-slate-200 pb-6">
-        <a class="text-sm font-medium text-emerald-700" href="{% url 'dashboard:index' %}">Back to reconciliation</a>
+        <nav class="mb-5 flex flex-wrap gap-2 text-sm">
+          <a class="rounded-md border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-800" href="{% url 'dashboard:index' %}">New run</a>
+          <a class="rounded-md border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-800" href="{% url 'dashboard:run_history' %}">Run history</a>
+          <a class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800" href="{% url 'dashboard:invoice_generator' %}">Invoice generator</a>
+        </nav>
         <h1 class="mt-2 text-3xl font-semibold">Invoice generator</h1>
         <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
           Generate CSV files with headers that the reconciliation engine can import directly.
@@ -111,4 +115,3 @@
     </main>
   </body>
 </html>
-

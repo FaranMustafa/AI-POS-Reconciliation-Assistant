@@ -51,6 +51,8 @@ class UploadWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Invoice generator")
+        self.assertContains(response, reverse("dashboard:index"))
+        self.assertContains(response, reverse("dashboard:run_history"))
         self.assertContains(response, 'name="invoice_type"')
 
     def test_invoice_generator_downloads_parseable_fuel_csv(self):
@@ -85,6 +87,8 @@ class UploadWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "New reconciliation run")
+        self.assertContains(response, reverse("dashboard:invoice_generator"))
+        self.assertContains(response, reverse("dashboard:run_history"))
         self.assertContains(response, 'name="source_type"')
         self.assertContains(response, 'name="source_file"')
         self.assertContains(response, "Expense")
@@ -438,6 +442,8 @@ class UploadWorkflowTests(TestCase):
         response = self.client.get(reverse("dashboard:run_history"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("dashboard:index"))
+        self.assertContains(response, reverse("dashboard:invoice_generator"))
         self.assertContains(response, f"Run #{run.pk}")
         # The other tenant's run must not show up.
         self.assertEqual(
