@@ -45,7 +45,9 @@ class UploadWorkflowTests(TestCase):
         self.assertContains(response, "New reconciliation run")
         self.assertContains(response, 'name="source_type"')
         self.assertContains(response, 'name="source_file"')
-        self.assertNotContains(response, "Expense")
+        self.assertContains(response, "Expense")
+        self.assertContains(response, 'name="multi_source_type"')
+        self.assertContains(response, 'name="multi_source_file"')
 
     def test_upload_pos_csv_creates_import_run_issue_and_redirects(self):
         self.login()
@@ -148,6 +150,96 @@ class UploadWorkflowTests(TestCase):
         self.assertContains(response, "Severity,Category,Title,Evidence,Recommended Action,Related Transactions")
         self.assertContains(response, "settlement_gap")
 
+    def test_multi_file_upload_creates_single_run_with_cross_source_issues(self):
+        self.login()
+
+        pos = SimpleUploadedFile(
+            "pos.csv",
+            (
+                "Business Date,Close ID,Cash Sales,Card Sales,Fuel Sales,Lottery Net,Suspended Sales\n"
+                "2026-05-01,close-2001,300.00,1290.10,0.00,0.00,0.00\n"
+            ).encode("utf-8"),
+            content_type="text/csv",
+        )
+        bank = SimpleUploadedFile(
+            "bank.csv",
+            (
+                "Posted Date,Deposit Ref,Description,Amount\n"
+                "2026-05-01,batch-9001,CARD SETTLEMENT,1280.10\n"
+            ).encode("utf-8"),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {
+                "source_type": ImportFile.SourceType.POS_DAILY,
+                "source_file": pos,
+                "multi_source_type": [ImportFile.SourceType.CARD_BANK],
+                "multi_source_file": [bank],
+            },
+        )
+
+        run = ReconciliationRun.objects.get()
+        self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
+        self.assertEqual(run.import_files.count(), 2)
+        self.assertTrue(
+            ReconciliationIssueRecord.objects.filter(
+                run=run,
+                category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            ).exists()
+        )
+
+    def test_accounting_adjustments_export_returns_csv(self):
+        self.login()
+
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
+        ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.HIGH,
+            category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            title="Card settlement does not match POS sales",
+            evidence=["POS card sales 1290.10; bank/card deposits 1280.10; short by 10.00."],
+            recommended_action="Check processor batch timing.",
+            related_transaction_ids=["pos-card", "bank-card"],
+        )
+
+        response = self.client.get(
+            reverse("dashboard:run_accounting_adjustments_export", args=[run.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn(b"Suggested Account", response.content)
+        self.assertIn(b"Card Clearing", response.content)
+
+    def test_run_summary_print_page_renders(self):
+        self.login()
+
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+            summary={"import_count": 1, "transaction_count": 4, "issue_count": 1},
+        )
+        ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.HIGH,
+            category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            title="Card settlement does not match POS sales",
+            evidence=["short by 10.00"],
+            recommended_action="Check processor batch timing.",
+            related_transaction_ids=["pos-card"],
+        )
+
+        response = self.client.get(reverse("dashboard:run_summary_print", args=[run.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Print / Save as PDF")
+        self.assertContains(response, "Card settlement does not match POS sales")
+
     def test_run_detail_is_limited_to_user_tenant(self):
         other_tenant = Tenant.objects.create(name="Other Store")
         run = ReconciliationRun.objects.create(
@@ -159,3 +251,117 @@ class UploadWorkflowTests(TestCase):
         response = self.client.get(reverse("dashboard:run_detail", args=[run.pk]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_run_history_lists_tenant_runs(self):
+        self.login()
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+            summary={"import_count": 1, "transaction_count": 4, "issue_count": 2},
+        )
+        other_tenant = Tenant.objects.create(name="Other Store")
+        ReconciliationRun.objects.create(
+            tenant=other_tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
+
+        response = self.client.get(reverse("dashboard:run_history"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Run #{run.pk}")
+        # The other tenant's run must not show up.
+        self.assertEqual(
+            response.content.count(b"Run #"),
+            response.content.count(f"Run #{run.pk}".encode("utf-8")),
+        )
+
+    def test_run_detail_severity_filter_narrows_results(self):
+        self.login()
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
+        ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.HIGH,
+            category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            title="Card settlement does not match POS sales",
+            evidence=["short by 10.00"],
+            recommended_action="Check processor batch timing.",
+            related_transaction_ids=["pos-card"],
+        )
+        ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.MEDIUM,
+            category=ReconciliationIssueRecord.Category.UNRESOLVED_SUSPENDED_SALE,
+            title="Suspended sale remains unresolved after close",
+            evidence=["2026-05-01 has suspended sales of 15.00."],
+            recommended_action="Resolve the suspended transaction.",
+            related_transaction_ids=["txn-1"],
+        )
+
+        response = self.client.get(
+            reverse("dashboard:run_detail", args=[run.pk]) + "?severity=high"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Card settlement does not match POS sales")
+        self.assertNotContains(response, "Suspended sale remains unresolved after close")
+
+    def test_update_issue_status_marks_resolved_and_writes_audit_event(self):
+        self.login()
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
+        issue = ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.HIGH,
+            category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            title="Card settlement does not match POS sales",
+            evidence=["short by 10.00"],
+            recommended_action="Check processor batch timing.",
+            related_transaction_ids=["pos-card"],
+        )
+
+        response = self.client.post(
+            reverse("dashboard:update_issue_status", args=[run.pk, issue.pk]),
+            {"status": ReconciliationIssueRecord.Status.RESOLVED, "note": "Reissued deposit."},
+        )
+
+        self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
+        issue.refresh_from_db()
+        self.assertEqual(issue.status, ReconciliationIssueRecord.Status.RESOLVED)
+        self.assertEqual(issue.resolution_note, "Reissued deposit.")
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action=AuditEvent.Action.ISSUE_RESOLVED,
+                run=run,
+                issue=issue,
+            ).exists()
+        )
+
+    def test_update_issue_status_rejects_unknown_value(self):
+        self.login()
+        run = ReconciliationRun.objects.create(
+            tenant=self.tenant,
+            status=ReconciliationRun.Status.COMPLETED,
+        )
+        issue = ReconciliationIssueRecord.objects.create(
+            run=run,
+            severity=ReconciliationIssueRecord.Severity.HIGH,
+            category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
+            title="Card settlement does not match POS sales",
+            evidence=["short by 10.00"],
+            recommended_action="Check processor batch timing.",
+            related_transaction_ids=["pos-card"],
+        )
+
+        response = self.client.post(
+            reverse("dashboard:update_issue_status", args=[run.pk, issue.pk]),
+            {"status": "bogus"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        issue.refresh_from_db()
+        self.assertEqual(issue.status, ReconciliationIssueRecord.Status.OPEN)

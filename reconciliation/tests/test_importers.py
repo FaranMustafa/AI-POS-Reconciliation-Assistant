@@ -2,6 +2,7 @@ import unittest
 
 from reconciliation.importers import (
     parse_card_bank_report,
+    parse_expense_report,
     parse_fuel_invoice_report,
     parse_lottery_settlement_report,
     parse_pos_daily_report,
@@ -68,6 +69,20 @@ class ImporterTests(unittest.TestCase):
         self.assertEqual(transactions[0].tender_type, "fuel")
         self.assertEqual(transactions[0].payee_key, "shell-oil-123")
 
+    def test_fuel_invoice_report_picks_up_optional_variance_columns(self):
+        content = (
+            "Invoice Date,Invoice Number,Vendor,Gallons,Amount,Received Gallons,Expected Amount\n"
+            "2026-05-01,FUEL-7001,Shell Oil Co. #123,1200.000,3198.75,1188.500,\n"
+            "2026-05-02,FUEL-7002,Shell Oil Co. #123,1100.000,2937.00,,2900.00\n"
+        )
+
+        transactions = parse_fuel_invoice_report(content, source_import_id="import-fuel")
+
+        self.assertEqual(transactions[0].metadata["received_gallons"], "1188.500")
+        self.assertNotIn("expected_amount", transactions[0].metadata)
+        self.assertEqual(transactions[1].metadata["expected_amount"], "2900.00")
+        self.assertNotIn("received_gallons", transactions[1].metadata)
+
     def test_lottery_settlement_report_creates_settlement_transaction(self):
         content = (
             "Settlement Date,Settlement ID,Net Due,Retailer Commission\n"
@@ -80,6 +95,37 @@ class ImporterTests(unittest.TestCase):
         self.assertEqual(transactions[0].category, "settlement")
         self.assertEqual(transactions[0].tender_type, "lottery")
         self.assertEqual(transactions[0].amount, "90.25")
+
+
+    def test_expense_report_creates_expense_transactions(self):
+        content = (
+            "Bill ID,Vendor,Bill Date,Amount,Payment Method,External Ref\n"
+            "BILL-100,Shell Oil Co. #123,2026-05-01,42.10,ACH,EXT-77\n"
+            "BILL-101,Acme Supplies LLC,2026-05-02,128.00,Credit,\n"
+        )
+
+        transactions = parse_expense_report(content, source_import_id="import-exp")
+
+        self.assertEqual(len(transactions), 2)
+        self.assertEqual(transactions[0].category, "expense")
+        self.assertEqual(transactions[0].tender_type, "bank")
+        self.assertEqual(transactions[0].external_ref, "EXT-77")
+        self.assertEqual(transactions[0].payee_key, "shell-oil-123")
+        self.assertEqual(transactions[1].tender_type, "card")
+        self.assertEqual(transactions[1].payee_key, "acme-supplies")
+        self.assertEqual(transactions[1].external_ref, "BILL-101")
+
+    def test_expense_report_skips_blank_rows(self):
+        content = (
+            "Bill ID,Vendor,Bill Date,Amount,Payment Method\n"
+            ",,,,\n"
+            "BILL-200,Vendor X,2026-05-03,10.00,Cash\n"
+        )
+
+        transactions = parse_expense_report(content, source_import_id="import-exp")
+
+        self.assertEqual(len(transactions), 1)
+        self.assertEqual(transactions[0].tender_type, "cash")
 
 
 if __name__ == "__main__":

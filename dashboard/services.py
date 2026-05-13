@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Callable, Dict, Iterable, List
+from typing import Callable, Dict, Iterable, List, Sequence, Tuple
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -16,6 +16,7 @@ from imports.models import (
 from reconciliation.engine import run_reconciliation
 from reconciliation.importers import (
     parse_card_bank_report,
+    parse_expense_report,
     parse_fuel_invoice_report,
     parse_lottery_settlement_report,
     parse_pos_daily_report,
@@ -32,6 +33,7 @@ IMPORTERS: Dict[str, Importer] = {
     ImportFile.SourceType.WOOCOMMERCE: parse_woocommerce_orders,
     ImportFile.SourceType.FUEL_INVOICE: parse_fuel_invoice_report,
     ImportFile.SourceType.LOTTERY_SETTLEMENT: parse_lottery_settlement_report,
+    ImportFile.SourceType.EXPENSE: parse_expense_report,
 }
 
 
@@ -43,42 +45,70 @@ def get_user_tenant(user) -> Tenant:
 
 
 def process_uploaded_import(source_type: str, uploaded_file, user=None) -> ReconciliationRun:
-    tenant = get_user_tenant(user)
-    import_file = ImportFile.objects.create(
-        tenant=tenant,
-        source_type=source_type,
-        original_filename=uploaded_file.name,
-        content_type=getattr(uploaded_file, "content_type", "") or "application/octet-stream",
-        file_size=uploaded_file.size,
-        status=ImportFile.Status.RECEIVED,
-    )
-    AuditEvent.objects.create(
-        tenant=tenant,
-        action=AuditEvent.Action.IMPORT_CREATED,
-        import_file=import_file,
-        actor_label=getattr(user, "username", "") or "system",
-        metadata={"source_type": source_type, "filename": uploaded_file.name},
-    )
+    """Single-file entrypoint preserved for backwards-compatibility with existing tests/views."""
 
-    try:
-        content = uploaded_file.read().decode("utf-8-sig")
-        transactions = _parse_transactions(source_type, content, import_file)
-        _persist_transactions(import_file, transactions)
-        import_file.status = ImportFile.Status.PROCESSED
-        import_file.error_message = ""
-        import_file.save(update_fields=["status", "error_message", "updated_at"])
+    return process_uploaded_run([(source_type, uploaded_file)], user=user)
+
+
+def process_uploaded_run(
+    uploads: Sequence[Tuple[str, object]], user=None
+) -> ReconciliationRun:
+    """Create a reconciliation run from one or more uploaded source files.
+
+    Each ``uploads`` entry is a ``(source_type, uploaded_file)`` pair. All imports
+    are attached to a single :class:`ReconciliationRun` and the engine is given
+    the combined transactions so cross-source rules (e.g., missing settlements,
+    WooCommerce vs POS) can fire.
+    """
+
+    if not uploads:
+        raise ValueError("At least one upload is required to start a run.")
+
+    tenant = get_user_tenant(user)
+    actor_label = getattr(user, "username", "") or "system"
+    import_files: List[ImportFile] = []
+    total_transactions = 0
+
+    for source_type, uploaded_file in uploads:
+        if source_type not in IMPORTERS:
+            raise ValueError(f"Unsupported source type: {source_type}")
+        import_file = ImportFile.objects.create(
+            tenant=tenant,
+            source_type=source_type,
+            original_filename=uploaded_file.name,
+            content_type=getattr(uploaded_file, "content_type", "")
+            or "application/octet-stream",
+            file_size=uploaded_file.size,
+            status=ImportFile.Status.RECEIVED,
+        )
         AuditEvent.objects.create(
             tenant=tenant,
-            action=AuditEvent.Action.IMPORT_PROCESSED,
+            action=AuditEvent.Action.IMPORT_CREATED,
             import_file=import_file,
-            actor_label=getattr(user, "username", "") or "system",
-            metadata={"transaction_count": len(transactions)},
+            actor_label=actor_label,
+            metadata={"source_type": source_type, "filename": uploaded_file.name},
         )
-    except Exception as exc:
-        import_file.status = ImportFile.Status.FAILED
-        import_file.error_message = str(exc)
-        import_file.save(update_fields=["status", "error_message", "updated_at"])
-        raise
+        try:
+            content = uploaded_file.read().decode("utf-8-sig")
+            transactions = _parse_transactions(source_type, content, import_file)
+            _persist_transactions(import_file, transactions)
+            import_file.status = ImportFile.Status.PROCESSED
+            import_file.error_message = ""
+            import_file.save(update_fields=["status", "error_message", "updated_at"])
+            AuditEvent.objects.create(
+                tenant=tenant,
+                action=AuditEvent.Action.IMPORT_PROCESSED,
+                import_file=import_file,
+                actor_label=actor_label,
+                metadata={"transaction_count": len(transactions)},
+            )
+            total_transactions += len(transactions)
+            import_files.append(import_file)
+        except Exception as exc:
+            import_file.status = ImportFile.Status.FAILED
+            import_file.error_message = str(exc)
+            import_file.save(update_fields=["status", "error_message", "updated_at"])
+            raise
 
     run = ReconciliationRun.objects.create(
         tenant=tenant,
@@ -86,23 +116,28 @@ def process_uploaded_import(source_type: str, uploaded_file, user=None) -> Recon
         started_at=timezone.now(),
         completed_at=timezone.now(),
         summary={
-            "import_count": 1,
-            "transaction_count": len(transactions),
+            "import_count": len(import_files),
+            "transaction_count": total_transactions,
+            "source_types": sorted({imp.source_type for imp in import_files}),
         },
     )
-    run.import_files.add(import_file)
+    for import_file in import_files:
+        run.import_files.add(import_file)
     AuditEvent.objects.create(
         tenant=tenant,
         action=AuditEvent.Action.RUN_CREATED,
         run=run,
-        actor_label=getattr(user, "username", "") or "system",
-        metadata={"import_file_ids": [import_file.id]},
+        actor_label=actor_label,
+        metadata={"import_file_ids": [imp.id for imp in import_files]},
     )
 
-    issues = run_reconciliation(
-        run_id=str(run.id),
-        transactions=list(_records_to_domain(import_file.transactions.all())),
-    )
+    combined_transactions: List[CanonicalTransaction] = []
+    for import_file in import_files:
+        combined_transactions.extend(
+            _records_to_domain(import_file.transactions.all())
+        )
+
+    issues = run_reconciliation(run_id=str(run.id), transactions=combined_transactions)
     _persist_issues(run, issues)
     run.summary = {
         **run.summary,

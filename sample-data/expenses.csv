@@ -1,0 +1,4 @@
+Bill ID,Vendor,Bill Date,Amount,Payment Method,External Ref
+BILL-100,Shell Oil Co. #123,2026-05-01,42.10,ACH,EXT-77
+BILL-101,Shell Oil Co. #123,2026-05-01,42.10,ACH,EXT-77
+BILL-200,Acme Supplies LLC,2026-05-02,128.00,Credit,

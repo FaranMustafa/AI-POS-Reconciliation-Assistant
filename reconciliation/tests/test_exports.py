@@ -2,7 +2,10 @@ import csv
 import io
 import unittest
 
-from reconciliation.exports import issues_to_csv
+from reconciliation.exports import (
+    issues_to_accounting_adjustment_csv,
+    issues_to_csv,
+)
 from reconciliation.types import ReconciliationIssue
 
 
@@ -53,6 +56,42 @@ class IssueExportTests(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0][0], "Severity")
+
+
+    def test_issues_to_accounting_adjustment_csv_maps_categories(self):
+        content = issues_to_accounting_adjustment_csv(
+            [
+                ReconciliationIssue(
+                    id="run-1:card-settlement:2026-05-01",
+                    run_id="run-1",
+                    severity="high",
+                    category="settlement_gap",
+                    title="Card settlement does not match POS sales for 2026-05-01",
+                    evidence=[
+                        "POS card sales 1290.10; bank/card deposits 1280.10; short by 10.00."
+                    ],
+                    recommended_action="Check processor batch timing.",
+                    related_transaction_ids=["pos-card", "bank-card"],
+                ),
+                ReconciliationIssue(
+                    id="run-1:fuel-amount:fuel-1",
+                    run_id="run-1",
+                    severity="medium",
+                    category="suspicious_total",
+                    title="Fuel invoice amount differs",
+                    evidence=["off by 48.75"],
+                    recommended_action="Verify contracted price.",
+                    related_transaction_ids=["fuel-1"],
+                ),
+            ]
+        )
+
+        rows = list(csv.reader(io.StringIO(content)))
+
+        self.assertEqual(rows[0][0], "Issue ID")
+        self.assertEqual(rows[1][3], "Card Clearing")
+        self.assertIn("short by 10.00", rows[1][4])
+        self.assertEqual(rows[2][3], "Fuel Inventory - Variance")
 
 
 if __name__ == "__main__":

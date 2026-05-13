@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title }} - AI POS Reconciliation Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-950">
+    <main class="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-6 py-8">
+      <header class="flex flex-col gap-3 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <a class="text-sm font-medium text-emerald-700" href="{% url 'dashboard:index' %}">New run</a>
+          <h1 class="mt-2 text-3xl font-semibold">{{ page_title }}</h1>
+          <p class="mt-2 text-sm text-slate-600">All reconciliation runs for your tenant, newest first.</p>
+        </div>
+      </header>
+
+      <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+        {% if runs %}
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+              <thead class="bg-slate-50 text-left text-slate-600">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Run</th>
+                  <th class="px-4 py-3 font-semibold">Status</th>
+                  <th class="px-4 py-3 font-semibold">Imports</th>
+                  <th class="px-4 py-3 font-semibold">Transactions</th>
+                  <th class="px-4 py-3 font-semibold">Issues</th>
+                  <th class="px-4 py-3 font-semibold">Created</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {% for run in runs %}
+                  <tr>
+                    <td class="px-4 py-3 font-semibold">
+                      <a class="text-emerald-700 hover:underline" href="{% url 'dashboard:run_detail' run.pk %}">Run #{{ run.pk }}</a>
+                    </td>
+                    <td class="px-4 py-3">{{ run.get_status_display }}</td>
+                    <td class="px-4 py-3">{{ run.import_files.count }}</td>
+                    <td class="px-4 py-3">{{ run.summary.transaction_count|default:0 }}</td>
+                    <td class="px-4 py-3">{{ run.summary.issue_count|default:0 }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ run.created_at|date:"Y-m-d H:i" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="px-4 py-6 text-sm text-slate-600">No reconciliation runs yet. Start one from the dashboard.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

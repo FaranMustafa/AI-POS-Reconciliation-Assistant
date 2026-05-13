@@ -49,9 +49,28 @@
 
           <label class="mt-6 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
             <span class="text-sm font-semibold">Choose a CSV file</span>
-            <span class="mt-1 text-sm text-slate-600">Excel upload follows after the CSV workflow is stable.</span>
+            <span class="mt-1 text-sm text-slate-600">Pair with additional sources below to enable cross-source checks.</span>
             <input class="mt-4 max-w-full text-sm" type="file" name="source_file" accept=".csv,text/csv">
           </label>
+
+          <details class="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
+            <summary class="cursor-pointer font-semibold text-slate-800">Add more sources to this run</summary>
+            <p class="mt-2 text-slate-600">
+              Upload up to three additional files. Cross-source rules (missing settlements, WooCommerce vs POS, expense duplicates) run when more than one source is present.
+            </p>
+            <div class="mt-4 space-y-4">
+              {% for index in "123" %}
+                <div class="grid gap-2 sm:grid-cols-[180px_1fr]">
+                  <select class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm" name="multi_source_type">
+                    {% for value, label in source_types %}
+                      <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <input class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm" type="file" name="multi_source_file" accept=".csv,text/csv">
+                </div>
+              {% endfor %}
+            </div>
+          </details>
 
           <button class="mt-5 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="submit">
             Run reconciliation

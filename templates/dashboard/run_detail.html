@@ -10,7 +10,11 @@
     <main class="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-6 py-8">
       <header class="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <a class="text-sm font-medium text-emerald-700" href="{% url 'dashboard:index' %}">New run</a>
+          <div class="flex gap-3 text-sm">
+            <a class="font-medium text-emerald-700" href="{% url 'dashboard:index' %}">New run</a>
+            <span class="text-slate-300">·</span>
+            <a class="font-medium text-emerald-700" href="{% url 'dashboard:run_history' %}">All runs</a>
+          </div>
           <h1 class="mt-2 text-3xl font-semibold">Run #{{ run.pk }}</h1>
           <p class="mt-2 text-sm text-slate-600">
             {{ run.import_files.count }} import{{ run.import_files.count|pluralize }},
@@ -20,7 +24,13 @@
         </div>
         <div class="flex flex-wrap items-center gap-3">
           <a class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800" href="{% url 'dashboard:run_issues_export' run.pk %}">
-            Export CSV
+            Issues CSV
+          </a>
+          <a class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800" href="{% url 'dashboard:run_accounting_adjustments_export' run.pk %}">
+            Accounting CSV
+          </a>
+          <a class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800" href="{% url 'dashboard:run_summary_print' run.pk %}" target="_blank" rel="noopener">
+            Print / PDF summary
           </a>
           <span class="w-fit rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
             {{ run.get_status_display }}
@@ -38,9 +48,55 @@
         {% endfor %}
       </section>
 
+      {% if messages %}
+        <div class="space-y-2">
+          {% for message in messages %}
+            <p class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Filter exceptions</h2>
+        <form class="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]" method="get">
+          <label class="text-sm">
+            <span class="block text-slate-600">Severity</span>
+            <select class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" name="severity">
+              <option value="">All ({{ total_issues }})</option>
+              {% for value, label in severity_choices %}
+                <option value="{{ value }}" {% if severity_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="text-sm">
+            <span class="block text-slate-600">Category</span>
+            <select class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" name="category">
+              <option value="">All categories</option>
+              {% for value, label in category_choices %}
+                <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="text-sm">
+            <span class="block text-slate-600">Status</span>
+            <select class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" name="status">
+              <option value="">All statuses</option>
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="flex items-end gap-2">
+            <button class="rounded-md bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white" type="submit">Apply</button>
+            <a class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700" href="{% url 'dashboard:run_detail' run.pk %}">Clear</a>
+          </div>
+        </form>
+      </section>
+
       <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-4 py-3">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 class="text-lg font-semibold">Exceptions</h2>
+          <p class="text-sm text-slate-600">Showing {{ issues|length }} of {{ total_issues }}</p>
         </div>
         {% if issues %}
           <div class="overflow-x-auto">
@@ -52,12 +108,21 @@
                   <th class="px-4 py-3 font-semibold">Issue</th>
                   <th class="px-4 py-3 font-semibold">Evidence</th>
                   <th class="px-4 py-3 font-semibold">Recommended action</th>
+                  <th class="px-4 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
                 {% for issue in issues %}
                   <tr>
-                    <td class="px-4 py-3 font-medium">{{ issue.get_severity_display }}</td>
+                    <td class="px-4 py-3 font-medium">
+                      <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold
+                        {% if issue.severity == 'critical' %}border-rose-200 bg-rose-50 text-rose-800
+                        {% elif issue.severity == 'high' %}border-amber-200 bg-amber-50 text-amber-800
+                        {% elif issue.severity == 'medium' %}border-sky-200 bg-sky-50 text-sky-800
+                        {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+                        {{ issue.get_severity_display }}
+                      </span>
+                    </td>
                     <td class="px-4 py-3">{{ issue.get_category_display }}</td>
                     <td class="px-4 py-3">{{ issue.title }}</td>
                     <td class="px-4 py-3">
@@ -66,13 +131,32 @@
                       {% endfor %}
                     </td>
                     <td class="px-4 py-3">{{ issue.recommended_action }}</td>
+                    <td class="px-4 py-3 align-top">
+                      <p class="font-semibold">{{ issue.get_status_display }}</p>
+                      {% if issue.resolution_note %}
+                        <p class="mt-1 text-xs text-slate-500">{{ issue.resolution_note }}</p>
+                      {% endif %}
+                      <form class="mt-2 flex flex-wrap gap-1" method="post" action="{% url 'dashboard:update_issue_status' run.pk issue.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        {% if issue.status != 'resolved' %}
+                          <button class="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800" type="submit" name="status" value="resolved">Resolve</button>
+                        {% endif %}
+                        {% if issue.status != 'dismissed' %}
+                          <button class="rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700" type="submit" name="status" value="dismissed">Dismiss</button>
+                        {% endif %}
+                        {% if issue.status != 'open' %}
+                          <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" type="submit" name="status" value="open">Reopen</button>
+                        {% endif %}
+                      </form>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
         {% else %}
-          <p class="px-4 py-6 text-sm text-slate-600">No exceptions were detected for this run.</p>
+          <p class="px-4 py-6 text-sm text-slate-600">No exceptions match the current filters.</p>
         {% endif %}
       </section>
     </main>

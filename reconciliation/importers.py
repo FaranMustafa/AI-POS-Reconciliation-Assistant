@@ -139,6 +139,13 @@ def parse_fuel_invoice_report(content: str, source_import_id: str) -> List[Canon
     for row in _rows(content):
         invoice_number = row["Invoice Number"]
         vendor = row["Vendor"]
+        metadata = {"vendor": vendor, "gallons": row["Gallons"]}
+        received_gallons = (row.get("Received Gallons", "") or "").strip()
+        if received_gallons:
+            metadata["received_gallons"] = received_gallons
+        expected_amount = (row.get("Expected Amount", "") or "").strip()
+        if expected_amount:
+            metadata["expected_amount"] = expected_amount
         transactions.append(
             _txn(
                 transaction_id=f"{source_import_id}:fuel:{invoice_number}",
@@ -151,7 +158,56 @@ def parse_fuel_invoice_report(content: str, source_import_id: str) -> List[Canon
                 external_ref=invoice_number,
                 payee_key=normalize_payee(vendor),
                 description=f"Fuel invoice {invoice_number}",
-                metadata={"vendor": vendor, "gallons": row["Gallons"]},
+                metadata=metadata,
+            )
+        )
+    return transactions
+
+
+_TENDER_BY_PAYMENT_METHOD = {
+    "cash": "cash",
+    "card": "card",
+    "credit": "card",
+    "credit card": "card",
+    "debit": "card",
+    "ach": "bank",
+    "bank": "bank",
+    "wire": "bank",
+    "check": "bank",
+    "online": "online",
+}
+
+
+def parse_expense_report(content: str, source_import_id: str) -> List[CanonicalTransaction]:
+    """Parse a bookkeeping export of payee/expense bills.
+
+    Expected columns: ``Bill ID``, ``Vendor``, ``Bill Date``, ``Amount``,
+    ``Payment Method`` (optional), ``External Ref`` (optional).
+    """
+
+    transactions: List[CanonicalTransaction] = []
+    for row in _rows(content):
+        bill_id = row.get("Bill ID") or row.get("Reference") or row.get("ID") or ""
+        vendor = row.get("Vendor") or row.get("Payee") or ""
+        if not vendor and not bill_id:
+            continue
+        payment_method = (row.get("Payment Method", "") or "").strip().lower()
+        tender_type = _TENDER_BY_PAYMENT_METHOD.get(payment_method, "unknown")
+        external_ref = row.get("External Ref") or bill_id or None
+        bill_date = row.get("Bill Date") or row.get("Date") or ""
+        transactions.append(
+            _txn(
+                transaction_id=f"{source_import_id}:expense:{bill_id or external_ref or vendor}",
+                source_import_id=source_import_id,
+                source_type="expense",
+                business_date=bill_date,
+                category="expense",
+                tender_type=tender_type,
+                amount=row.get("Amount", "0"),
+                external_ref=external_ref or None,
+                payee_key=normalize_payee(vendor) if vendor else None,
+                description=f"Bill {bill_id or external_ref or vendor}".strip(),
+                metadata={"vendor": vendor, "payment_method": payment_method},
             )
         )
     return transactions
