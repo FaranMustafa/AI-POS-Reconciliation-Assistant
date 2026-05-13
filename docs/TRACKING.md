@@ -2,11 +2,11 @@
 
 ## Current Status
 
-- Phase: MVP feature complete for ingestion and review; production hardening remains
-- Workspace state: Django project with CSV/XLSX/pasted-text pipeline, queue-ready run processing, persistence, exports, multi-source runs, and review workspace
+- Phase: MVP feature complete for ingestion, review, and production-readiness baseline
+- Workspace state: Django project with CSV/XLSX/pasted-text pipeline, queue-ready run processing, persistence, exports, multi-source runs, review workspace, upload validation, secure settings, and structured logs
 - Primary plan: `docs/superpowers/plans/2026-05-12-ai-pos-reconciliation-assistant.md`
 - Product scope: MVP for small retailers and accountants reconciling POS, cash, card, fuel, lottery, expenses, invoices, and WooCommerce exports
-- Test coverage: 44 Django tests + standalone reconciliation tests all green
+- Test coverage: 54 Django tests + 26 standalone reconciliation tests all green
 
 ## Milestones
 
@@ -18,7 +18,7 @@
 | M3 | Review workspace UI | Done | Upload multiple files in one run; run history, severity/category/status filters, issue resolve/dismiss/reopen actions |
 | M4 | Persistence and audit trail | Done | Imports, transactions, runs, issues, and audit events stored with tenant scoping; resolve/dismiss writes audit events |
 | M5 | Export and handoff | Done | Issues CSV, accounting-adjustment CSV, and PDF-ready summary all wired into the run detail page |
-| M6 | Production readiness | In progress | Auth, tenant isolation, queue-ready processing, upload validation, and secure settings in place; structured logging remains |
+| M6 | Production readiness | Done | Auth, tenant isolation, queue-ready processing, upload validation, secure settings, and structured logging are in place |
 
 ## Sub-Tasks
 
@@ -35,7 +35,7 @@
 | T09 | Create exception review UI with filters and resolution actions | Codex | Done | T07, T08 |
 | T10 | Add database persistence and audit events | Codex | Done | T02, T09 |
 | T11 | Add exports for exception reports and accounting adjustments | Codex | Done | T09, T10 |
-| T12 | Add auth, tenant boundaries, and production hardening | Codex | In progress | T10 |
+| T12 | Add auth, tenant boundaries, and production hardening | Codex | Done | T10 |
 | T13 | Expense CSV importer and engine duplicate detection across sources | Codex | Done | T03, T07 |
 | T14 | WooCommerce vs POS, fuel invoice variance, and missing/orphan settlement rules | Codex | Done | T07 |
 | T15 | Multi-file upload + cross-source run aggregation | Codex | Done | T08, T14 |
@@ -45,7 +45,7 @@
 | T19 | XLSX and pasted-text ingestion (openpyxl + tabular text) | Codex | Done | T13 |
 | T20 | Async run processing via Celery/Redis-ready service boundary | Codex | Done | T15 |
 | T21 | Upload validation and production security settings | Codex | Done | T12 |
-| T22 | Structured logging for imports, runs, and issue actions | Codex | Pending | T12 |
+| T22 | Structured logging for imports, runs, and issue actions | Codex | Done | T12 |
 
 ## Build Log
 
@@ -68,6 +68,7 @@
 | 2026-05-13 | Started T20 async run processing slice: separating run creation from reconciliation execution so Celery/Redis can call the same service path. |
 | 2026-05-13 | Completed T20 queue-ready processing boundary: uploads can create a pending run, `process_pending_run(run_id)` executes reconciliation and persists issues, and the dashboard exposes a queued processing option for later Celery wiring. |
 | 2026-05-13 | Completed T21 upload/security hardening: dashboard rejects unsupported file extensions and uploads above the configured 10 MB limit before persistence, `.env.example` exposes `MAX_UPLOAD_BYTES`, and production settings enable secure cookies, SSL redirect, proxy SSL header, and HSTS when `DEBUG=false`. |
+| 2026-05-13 | Completed T22 structured logging: import creation, import processing, run creation/completion, and issue status updates emit `pos_reconciliation` log events with tenant/run/import/issue context. M6 production-readiness baseline is now done. |
 
 ## Risks
 

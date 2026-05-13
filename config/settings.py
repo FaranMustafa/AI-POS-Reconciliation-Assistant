@@ -69,3 +69,26 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 globals().update(build_security_config(DEBUG))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "structured": {
+            "format": "%(levelname)s %(name)s %(event)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "structured",
+        },
+    },
+    "loggers": {
+        "pos_reconciliation": {
+            "handlers": ["console"],
+            "level": config("APP_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+    },
+}

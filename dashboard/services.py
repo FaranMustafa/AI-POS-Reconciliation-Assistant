@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from openpyxl import load_workbook
 
+from config.logging import log_event
 from imports.models import (
     AuditEvent,
     CanonicalTransactionRecord,
@@ -104,6 +105,14 @@ def process_uploaded_run(
             actor_label=actor_label,
             metadata={"source_type": source_type, "filename": uploaded_file.name},
         )
+        log_event(
+            "import_created",
+            "Import file record created.",
+            tenant_id=tenant.id,
+            import_file_id=import_file.id,
+            source_type=source_type,
+            filename=uploaded_file.name,
+        )
         try:
             content = _read_tabular_upload(uploaded_file)
             transactions = _parse_transactions(source_type, content, import_file)
@@ -117,6 +126,14 @@ def process_uploaded_run(
                 import_file=import_file,
                 actor_label=actor_label,
                 metadata={"transaction_count": len(transactions)},
+            )
+            log_event(
+                "import_processed",
+                "Import file processed.",
+                tenant_id=tenant.id,
+                import_file_id=import_file.id,
+                source_type=source_type,
+                transaction_count=len(transactions),
             )
             total_transactions += len(transactions)
             import_files.append(import_file)
@@ -147,6 +164,14 @@ def process_uploaded_run(
         run=run,
         actor_label=actor_label,
         metadata={"import_file_ids": [imp.id for imp in import_files]},
+    )
+    log_event(
+        "run_created",
+        "Reconciliation run created.",
+        tenant_id=tenant.id,
+        run_id=run.id,
+        import_file_ids=[imp.id for imp in import_files],
+        run_immediately=run_immediately,
     )
 
     if not run_immediately:
@@ -180,6 +205,14 @@ def process_pending_run(run_id: int) -> ReconciliationRun:
     run.status = ReconciliationRun.Status.COMPLETED
     run.completed_at = timezone.now()
     run.save(update_fields=["status", "completed_at", "summary", "updated_at"])
+    log_event(
+        "run_completed",
+        "Reconciliation run completed.",
+        tenant_id=run.tenant_id,
+        run_id=run.id,
+        issue_count=len(issues),
+        transaction_count=len(combined_transactions),
+    )
     return run
 
 

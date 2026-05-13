@@ -64,10 +64,11 @@ class UploadWorkflowTests(TestCase):
             content_type="text/csv",
         )
 
-        response = self.client.post(
-            reverse("dashboard:index"),
-            {"source_type": ImportFile.SourceType.POS_DAILY, "source_file": upload},
-        )
+        with self.assertLogs("pos_reconciliation", level="INFO") as captured:
+            response = self.client.post(
+                reverse("dashboard:index"),
+                {"source_type": ImportFile.SourceType.POS_DAILY, "source_file": upload},
+            )
 
         run = ReconciliationRun.objects.get()
         self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
@@ -90,6 +91,8 @@ class UploadWorkflowTests(TestCase):
         self.assertEqual(AuditEvent.objects.filter(action=AuditEvent.Action.IMPORT_CREATED).count(), 1)
         self.assertEqual(AuditEvent.objects.filter(action=AuditEvent.Action.IMPORT_PROCESSED).count(), 1)
         self.assertEqual(AuditEvent.objects.filter(action=AuditEvent.Action.RUN_CREATED).count(), 1)
+        self.assertTrue(any("import_processed" in message for message in captured.output))
+        self.assertTrue(any("run_completed" in message for message in captured.output))
 
     def test_run_detail_displays_issues(self):
         self.login()
@@ -451,10 +454,11 @@ class UploadWorkflowTests(TestCase):
             related_transaction_ids=["pos-card"],
         )
 
-        response = self.client.post(
-            reverse("dashboard:update_issue_status", args=[run.pk, issue.pk]),
-            {"status": ReconciliationIssueRecord.Status.RESOLVED, "note": "Reissued deposit."},
-        )
+        with self.assertLogs("pos_reconciliation", level="INFO") as captured:
+            response = self.client.post(
+                reverse("dashboard:update_issue_status", args=[run.pk, issue.pk]),
+                {"status": ReconciliationIssueRecord.Status.RESOLVED, "note": "Reissued deposit."},
+            )
 
         self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
         issue.refresh_from_db()
@@ -467,6 +471,7 @@ class UploadWorkflowTests(TestCase):
                 issue=issue,
             ).exists()
         )
+        self.assertTrue(any("issue_status_updated" in message for message in captured.output))
 
     def test_update_issue_status_rejects_unknown_value(self):
         self.login()

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from config.logging import log_event
 from dashboard.services import (
     IMPORTERS,
     PastedTabularUpload,
@@ -232,6 +233,15 @@ def update_issue_status(request, run_pk, issue_pk):
             actor_label=getattr(request.user, "username", "") or "system",
             metadata={"status": new_status, "note": note, "at": timezone.now().isoformat()},
         )
+    log_event(
+        "issue_status_updated",
+        "Issue status updated.",
+        tenant_id=tenant.id,
+        run_id=run.id,
+        issue_id=issue.id,
+        status=new_status,
+        actor_label=getattr(request.user, "username", "") or "system",
+    )
 
     messages.success(request, f"Issue marked as {issue.get_status_display().lower()}.")
     redirect_target = request.POST.get("next") or "dashboard:run_detail"
