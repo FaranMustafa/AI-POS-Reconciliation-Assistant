@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from config.env import build_database_config, parse_allowed_hosts
+from config.env import build_database_config, build_security_config, parse_allowed_hosts
 
 
 class EnvironmentConfigTests(SimpleTestCase):
@@ -29,3 +29,17 @@ class EnvironmentConfigTests(SimpleTestCase):
         self.assertEqual(config["HOST"], "db.example.com")
         self.assertEqual(config["PORT"], "5432")
 
+    def test_build_security_config_hardens_when_debug_is_false(self):
+        config = build_security_config(debug=False)
+
+        self.assertTrue(config["SESSION_COOKIE_SECURE"])
+        self.assertTrue(config["CSRF_COOKIE_SECURE"])
+        self.assertEqual(config["SECURE_PROXY_SSL_HEADER"], ("HTTP_X_FORWARDED_PROTO", "https"))
+        self.assertEqual(config["SECURE_HSTS_SECONDS"], 31536000)
+
+    def test_build_security_config_remains_dev_friendly_when_debug_is_true(self):
+        config = build_security_config(debug=True)
+
+        self.assertFalse(config["SESSION_COOKIE_SECURE"])
+        self.assertFalse(config["CSRF_COOKIE_SECURE"])
+        self.assertEqual(config["SECURE_HSTS_SECONDS"], 0)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from decouple import config
 
-from config.env import build_database_config, parse_allowed_hosts
+from config.env import build_database_config, build_security_config, parse_allowed_hosts
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,6 +13,7 @@ ALLOWED_HOSTS = parse_allowed_hosts(
     config("ALLOWED_HOSTS", default="localhost,127.0.0.1")
 )
 LOGIN_URL = "/admin/login/"
+MAX_UPLOAD_BYTES = config("MAX_UPLOAD_BYTES", default=10 * 1024 * 1024, cast=int)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -66,3 +67,5 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+globals().update(build_security_config(DEBUG))

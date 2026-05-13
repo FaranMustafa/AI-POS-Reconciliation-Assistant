@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -22,6 +23,9 @@ from reconciliation.exports import (
     issues_to_csv,
 )
 from reconciliation.types import ReconciliationIssue
+
+
+ALLOWED_UPLOAD_EXTENSIONS = {".csv", ".xlsx"}
 
 
 @login_required
@@ -68,6 +72,10 @@ def _collect_uploads(request):
         if single_source_type not in IMPORTERS:
             messages.error(request, "Choose a supported source type.")
             return None
+        validation_error = _validate_uploaded_file(single_file)
+        if validation_error:
+            messages.error(request, validation_error)
+            return None
         uploads.append((single_source_type, single_file))
 
     for source_type, uploaded_file in zip(multi_source_types, multi_files):
@@ -75,6 +83,10 @@ def _collect_uploads(request):
             continue
         if source_type not in IMPORTERS:
             messages.error(request, f"Unsupported source type: {source_type}.")
+            return None
+        validation_error = _validate_uploaded_file(uploaded_file)
+        if validation_error:
+            messages.error(request, validation_error)
             return None
         uploads.append((source_type, uploaded_file))
 
@@ -102,6 +114,16 @@ def _collect_uploads(request):
         )
         return None
     return uploads
+
+
+def _validate_uploaded_file(uploaded_file):
+    filename = (getattr(uploaded_file, "name", "") or "").lower()
+    if not any(filename.endswith(extension) for extension in ALLOWED_UPLOAD_EXTENSIONS):
+        return "Only CSV, XLSX, or pasted tabular text is supported."
+    max_bytes = getattr(settings, "MAX_UPLOAD_BYTES", 10 * 1024 * 1024)
+    if getattr(uploaded_file, "size", 0) > max_bytes:
+        return "File is larger than the 10 MB limit."
+    return ""
 
 
 @login_required

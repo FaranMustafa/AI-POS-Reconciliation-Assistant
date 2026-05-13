@@ -227,6 +227,40 @@ class UploadWorkflowTests(TestCase):
         self.assertEqual(ImportFile.objects.get().original_filename, "pos-daily.xlsx")
         self.assertEqual(CanonicalTransactionRecord.objects.count(), 4)
 
+    def test_rejects_unsupported_upload_extension(self):
+        self.login()
+        upload = SimpleUploadedFile(
+            "pos-daily.pdf",
+            b"%PDF-1.4",
+            content_type="application/pdf",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {"source_type": ImportFile.SourceType.POS_DAILY, "source_file": upload},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Only CSV, XLSX, or pasted tabular text is supported.")
+        self.assertEqual(ImportFile.objects.count(), 0)
+
+    def test_rejects_upload_over_size_limit(self):
+        self.login()
+        upload = SimpleUploadedFile(
+            "pos-daily.csv",
+            b"x" * (10 * 1024 * 1024 + 1),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {"source_type": ImportFile.SourceType.POS_DAILY, "source_file": upload},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "File is larger than the 10 MB limit.")
+        self.assertEqual(ImportFile.objects.count(), 0)
+
     def test_pasted_tabular_text_creates_import_run(self):
         self.login()
         pasted_content = (

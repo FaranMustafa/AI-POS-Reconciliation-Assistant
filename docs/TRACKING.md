@@ -18,7 +18,7 @@
 | M3 | Review workspace UI | Done | Upload multiple files in one run; run history, severity/category/status filters, issue resolve/dismiss/reopen actions |
 | M4 | Persistence and audit trail | Done | Imports, transactions, runs, issues, and audit events stored with tenant scoping; resolve/dismiss writes audit events |
 | M5 | Export and handoff | Done | Issues CSV, accounting-adjustment CSV, and PDF-ready summary all wired into the run detail page |
-| M6 | Production readiness | In progress | Auth, tenant isolation, and queue-ready run processing in place; validation, logging, hardening remain |
+| M6 | Production readiness | In progress | Auth, tenant isolation, queue-ready processing, upload validation, and secure settings in place; structured logging remains |
 
 ## Sub-Tasks
 
@@ -44,6 +44,8 @@
 | T18 | Issue resolve/dismiss/reopen endpoint with audit events | Codex | Done | T09, T10 |
 | T19 | XLSX and pasted-text ingestion (openpyxl + tabular text) | Codex | Done | T13 |
 | T20 | Async run processing via Celery/Redis-ready service boundary | Codex | Done | T15 |
+| T21 | Upload validation and production security settings | Codex | Done | T12 |
+| T22 | Structured logging for imports, runs, and issue actions | Codex | Pending | T12 |
 
 ## Build Log
 
@@ -65,6 +67,7 @@
 | 2026-05-13 | Added XLSX upload handling via `openpyxl`, tab-delimited pasted-text parsing, and dashboard pasted text controls. Targeted tests verify XLSX POS uploads create runs and pasted tabular text normalizes through the same importer path. |
 | 2026-05-13 | Started T20 async run processing slice: separating run creation from reconciliation execution so Celery/Redis can call the same service path. |
 | 2026-05-13 | Completed T20 queue-ready processing boundary: uploads can create a pending run, `process_pending_run(run_id)` executes reconciliation and persists issues, and the dashboard exposes a queued processing option for later Celery wiring. |
+| 2026-05-13 | Completed T21 upload/security hardening: dashboard rejects unsupported file extensions and uploads above the configured 10 MB limit before persistence, `.env.example` exposes `MAX_UPLOAD_BYTES`, and production settings enable secure cookies, SSL redirect, proxy SSL header, and HSTS when `DEBUG=false`. |
 
 ## Risks
 
