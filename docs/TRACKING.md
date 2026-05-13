@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- Phase: MVP feature complete for file/pasted-text ingestion; async processing and production hardening remain
-- Workspace state: Django project with CSV/XLSX/pasted-text pipeline, persistence, exports, multi-source runs, and review workspace
+- Phase: MVP feature complete for ingestion and review; production hardening remains
+- Workspace state: Django project with CSV/XLSX/pasted-text pipeline, queue-ready run processing, persistence, exports, multi-source runs, and review workspace
 - Primary plan: `docs/superpowers/plans/2026-05-12-ai-pos-reconciliation-assistant.md`
 - Product scope: MVP for small retailers and accountants reconciling POS, cash, card, fuel, lottery, expenses, invoices, and WooCommerce exports
 - Test coverage: 44 Django tests + standalone reconciliation tests all green
@@ -18,7 +18,7 @@
 | M3 | Review workspace UI | Done | Upload multiple files in one run; run history, severity/category/status filters, issue resolve/dismiss/reopen actions |
 | M4 | Persistence and audit trail | Done | Imports, transactions, runs, issues, and audit events stored with tenant scoping; resolve/dismiss writes audit events |
 | M5 | Export and handoff | Done | Issues CSV, accounting-adjustment CSV, and PDF-ready summary all wired into the run detail page |
-| M6 | Production readiness | In progress | Auth and tenant isolation in place; validation, logging, hardening, async processing remain |
+| M6 | Production readiness | In progress | Auth, tenant isolation, and queue-ready run processing in place; validation, logging, hardening remain |
 
 ## Sub-Tasks
 
@@ -43,7 +43,7 @@
 | T17 | Run history list page and severity/category/status filters on run detail | Codex | Done | T09 |
 | T18 | Issue resolve/dismiss/reopen endpoint with audit events | Codex | Done | T09, T10 |
 | T19 | XLSX and pasted-text ingestion (openpyxl + tabular text) | Codex | Done | T13 |
-| T20 | Async run processing via Celery/Redis | Codex | Pending | T15 |
+| T20 | Async run processing via Celery/Redis-ready service boundary | Codex | Done | T15 |
 
 ## Build Log
 
@@ -63,6 +63,8 @@
 | 2026-05-12 | Added run history page at `/runs/`, severity/category/status filters on run detail, severity badge pills, and resolve/dismiss/reopen issue status endpoint that emits `ISSUE_RESOLVED` / `ISSUE_DISMISSED` audit events. Verified with `python3 manage.py test` (44 passing) and `python3 -m unittest discover -s reconciliation/tests` (23 passing). |
 | 2026-05-12 | Extended `parse_fuel_invoice_report` to read optional `Received Gallons` and `Expected Amount` columns so the fuel-variance engine rule can fire from CSV inputs. Added a `sample-data/` folder with six end-to-end CSVs (pos, bank, lottery, fuel, woocommerce, expenses) covering two business days and a README that enumerates the nine exceptions to expect. Simulated run produces 9/9 expected issues. Tests: 25 standalone + 45 Django, all green. |
 | 2026-05-13 | Added XLSX upload handling via `openpyxl`, tab-delimited pasted-text parsing, and dashboard pasted text controls. Targeted tests verify XLSX POS uploads create runs and pasted tabular text normalizes through the same importer path. |
+| 2026-05-13 | Started T20 async run processing slice: separating run creation from reconciliation execution so Celery/Redis can call the same service path. |
+| 2026-05-13 | Completed T20 queue-ready processing boundary: uploads can create a pending run, `process_pending_run(run_id)` executes reconciliation and persists issues, and the dashboard exposes a queued processing option for later Celery wiring. |
 
 ## Risks
 

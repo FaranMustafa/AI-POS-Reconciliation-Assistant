@@ -47,14 +47,27 @@ def get_user_tenant(user) -> Tenant:
     return membership.tenant
 
 
-def process_uploaded_import(source_type: str, uploaded_file, user=None) -> ReconciliationRun:
+def process_uploaded_import(
+    source_type: str,
+    uploaded_file,
+    user=None,
+    *,
+    run_immediately: bool = True,
+) -> ReconciliationRun:
     """Single-file entrypoint preserved for backwards-compatibility with existing tests/views."""
 
-    return process_uploaded_run([(source_type, uploaded_file)], user=user)
+    return process_uploaded_run(
+        [(source_type, uploaded_file)],
+        user=user,
+        run_immediately=run_immediately,
+    )
 
 
 def process_uploaded_run(
-    uploads: Sequence[Tuple[str, object]], user=None
+    uploads: Sequence[Tuple[str, object]],
+    user=None,
+    *,
+    run_immediately: bool = True,
 ) -> ReconciliationRun:
     """Create a reconciliation run from one or more uploaded source files.
 
@@ -115,9 +128,11 @@ def process_uploaded_run(
 
     run = ReconciliationRun.objects.create(
         tenant=tenant,
-        status=ReconciliationRun.Status.COMPLETED,
+        status=ReconciliationRun.Status.RUNNING
+        if run_immediately
+        else ReconciliationRun.Status.PENDING,
         started_at=timezone.now(),
-        completed_at=timezone.now(),
+        completed_at=None,
         summary={
             "import_count": len(import_files),
             "transaction_count": total_transactions,
@@ -134,7 +149,23 @@ def process_uploaded_run(
         metadata={"import_file_ids": [imp.id for imp in import_files]},
     )
 
+    if not run_immediately:
+        run.save(update_fields=["status", "started_at", "completed_at", "summary", "updated_at"])
+        return run
+
+    return process_pending_run(run.id)
+
+
+def process_pending_run(run_id: int) -> ReconciliationRun:
+    run = ReconciliationRun.objects.prefetch_related("import_files").get(id=run_id)
+    run.status = ReconciliationRun.Status.RUNNING
+    run.started_at = run.started_at or timezone.now()
+    run.completed_at = None
+    run.error_message = ""
+    run.save(update_fields=["status", "started_at", "completed_at", "error_message", "updated_at"])
+
     combined_transactions: List[CanonicalTransaction] = []
+    import_files = list(run.import_files.all())
     for import_file in import_files:
         combined_transactions.extend(
             _records_to_domain(import_file.transactions.all())
@@ -146,7 +177,9 @@ def process_uploaded_run(
         **run.summary,
         "issue_count": len(issues),
     }
-    run.save(update_fields=["summary", "updated_at"])
+    run.status = ReconciliationRun.Status.COMPLETED
+    run.completed_at = timezone.now()
+    run.save(update_fields=["status", "completed_at", "summary", "updated_at"])
     return run
 
 

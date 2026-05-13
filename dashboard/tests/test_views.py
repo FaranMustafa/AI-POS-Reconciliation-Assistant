@@ -13,6 +13,7 @@ from imports.models import (
     ReconciliationRun,
     Tenant,
 )
+from dashboard.services import process_pending_run
 
 
 class UploadWorkflowTests(TestCase):
@@ -246,6 +247,41 @@ class UploadWorkflowTests(TestCase):
         import_file = ImportFile.objects.get()
         self.assertEqual(import_file.original_filename, "pasted-pos_daily.txt")
         self.assertEqual(CanonicalTransactionRecord.objects.count(), 4)
+
+    def test_async_mode_creates_pending_run_then_processes_it(self):
+        self.login()
+        upload = SimpleUploadedFile(
+            "pos-daily.csv",
+            (
+                "Business Date,Close ID,Cash Sales,Card Sales,Fuel Sales,Lottery Net,Suspended Sales\n"
+                "2026-05-01,close-5001,100.00,200.00,0.00,0.00,15.00\n"
+            ).encode("utf-8"),
+            content_type="text/csv",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {
+                "source_type": ImportFile.SourceType.POS_DAILY,
+                "source_file": upload,
+                "processing_mode": "queued",
+            },
+        )
+
+        run = ReconciliationRun.objects.get()
+        self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
+        self.assertEqual(run.status, ReconciliationRun.Status.PENDING)
+        self.assertEqual(run.issues.count(), 0)
+
+        process_pending_run(run.id)
+
+        run.refresh_from_db()
+        self.assertEqual(run.status, ReconciliationRun.Status.COMPLETED)
+        self.assertTrue(
+            run.issues.filter(
+                category=ReconciliationIssueRecord.Category.UNRESOLVED_SUSPENDED_SALE
+            ).exists()
+        )
 
     def test_accounting_adjustments_export_returns_csv(self):
         self.login()

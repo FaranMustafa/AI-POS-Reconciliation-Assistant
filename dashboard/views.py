@@ -34,7 +34,11 @@ def index(request):
                 "dashboard/index.html",
                 _index_context(),
             )
-        run = process_uploaded_run(uploads, user=request.user)
+        run = process_uploaded_run(
+            uploads,
+            user=request.user,
+            run_immediately=request.POST.get("processing_mode") != "queued",
+        )
         return redirect("dashboard:run_detail", pk=run.pk)
 
     return render(request, "dashboard/index.html", _index_context())
