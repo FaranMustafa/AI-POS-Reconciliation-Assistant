@@ -19,6 +19,13 @@
 | M4 | Persistence and audit trail | Done | Imports, transactions, runs, issues, and audit events stored with tenant scoping; resolve/dismiss writes audit events |
 | M5 | Export and handoff | Done | Issues CSV, accounting-adjustment CSV, PDF-ready summary, and engine-compatible invoice generation wired into the app |
 | M6 | Production readiness | Done | Auth, tenant isolation, queue-ready processing, upload validation, secure settings, and structured logging are in place |
+| M7 | Source mapping templates | Proposed | Users can save column mappings per POS/bank/vendor source and reuse them on future uploads |
+| M8 | AI-assisted import mapping | Proposed | App suggests source type and column mapping from uploaded headers, with user approval before processing |
+| M9 | Reconciliation profiles | Proposed | Stores can define expected tenders, settlement timing, fuel vendors, lottery rules, and tolerance thresholds |
+| M10 | Scheduled reconciliation | Proposed | Users can schedule recurring daily/weekly reconciliation jobs using saved profiles and queued processing |
+| M11 | Exception analytics dashboard | Proposed | Users can see mismatch trends, recurring vendors/payees, settlement delays, and estimated dollars at risk |
+| M12 | Notifications and approvals | Proposed | Users can assign issues, request approval, and receive email/slack-style alerts for critical exceptions |
+| M13 | Accounting integrations | Proposed | App exports or syncs approved adjustments to QuickBooks/Xero-compatible formats with audit history |
 
 ## Sub-Tasks
 
@@ -49,6 +56,15 @@
 | T23 | Generate engine-compatible invoice CSVs | Codex | Done | T05, T13 |
 | T24 | Add primary navigation across upload, run history, and invoice generator pages | Codex | Done | T23 |
 | T25 | Split invoice generator into type-specific form panels | Codex | Done | T23 |
+| T26 | Saved column mapping templates for flexible imports | Proposed | Pending | T19 |
+| T27 | AI-assisted source detection and column mapping suggestions | Proposed | Pending | T26 |
+| T28 | Reconciliation profile model with tolerances and source expectations | Proposed | Pending | T15 |
+| T29 | Apply reconciliation profiles during upload and queued processing | Proposed | Pending | T28 |
+| T30 | Scheduled reconciliation jobs for saved profiles | Proposed | Pending | T20, T28 |
+| T31 | Exception analytics dashboard with trend summaries | Proposed | Pending | T17, T18 |
+| T32 | Issue assignment, approval states, and notification hooks | Proposed | Pending | T18 |
+| T33 | QuickBooks/Xero-friendly export mapping for approved adjustments | Proposed | Pending | T16, T18 |
+| T34 | Generated invoice library with saved drafts and reuse | Proposed | Pending | T23 |
 
 ## Build Log
 
@@ -76,6 +92,7 @@
 | 2026-05-13 | Completed T23 invoice generator: authenticated `/invoice-generator/` page downloads fuel invoice, expense bill, and lottery settlement CSVs with headers accepted by the existing importers. Generator tests prove each CSV parses through the engine adapters. |
 | 2026-05-13 | Completed T24 routing polish: dashboard, run history, run detail, and invoice generator now expose visible links to the main app pages so users can reach `/invoice-generator/` without knowing the URL. |
 | 2026-05-13 | Completed T25 invoice-generator UX fix: fuel invoice, expense bill, and lottery settlement now render as separate selectable form panels instead of one combined form. |
+| 2026-05-13 | Added proposed future milestones M7-M13 and tasks T26-T34 covering mapping templates, AI-assisted imports, reconciliation profiles, scheduling, analytics, notifications, accounting integrations, and saved generated invoices. |
 
 ## Risks
 
