@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title }} - AI POS Reconciliation Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-950">
+    <main class="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-8">
+      <header class="border-b border-slate-200 pb-6">
+        <a class="text-sm font-medium text-emerald-700" href="{% url 'dashboard:index' %}">Back to reconciliation</a>
+        <h1 class="mt-2 text-3xl font-semibold">Invoice generator</h1>
+        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          Generate CSV files with headers that the reconciliation engine can import directly.
+        </p>
+      </header>
+
+      {% if messages %}
+        <div class="space-y-2">
+          {% for message in messages %}
+            <p class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" method="post">
+        {% csrf_token %}
+        <div class="grid gap-4 md:grid-cols-3">
+          {% for value, label in invoice_types %}
+            <label class="flex items-center gap-3 rounded-md border border-slate-200 p-3 text-sm">
+              <input class="h-4 w-4 accent-emerald-700" type="radio" name="invoice_type" value="{{ value }}" {% if forloop.first %}checked{% endif %}>
+              <span>{{ label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <section class="mt-6 grid gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Invoice / settlement date</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="invoice_date">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Fuel invoice number</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="invoice_number" placeholder="FUEL-9001">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Vendor</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="vendor" placeholder="Shell Oil Co. #123">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Gallons</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="gallons" placeholder="1200.000">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Amount</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="amount" placeholder="3198.75">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Received gallons</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="received_gallons" placeholder="1188.500">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Expected amount</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="expected_amount" placeholder="3150.00">
+          </label>
+        </section>
+
+        <section class="mt-8 grid gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Bill ID</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="bill_id" placeholder="BILL-9001">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Bill date</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="bill_date">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Payment method</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="payment_method" placeholder="Credit">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">External ref</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="external_ref" placeholder="EXT-9001">
+          </label>
+        </section>
+
+        <section class="mt-8 grid gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Settlement date</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="settlement_date">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Settlement ID</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="settlement_id" placeholder="LOT-9001">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Net due</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="net_due" placeholder="90.25">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Retailer commission</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="retailer_commission" placeholder="12.00">
+          </label>
+        </section>
+
+        <button class="mt-6 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="submit">
+          Generate CSV
+        </button>
+      </form>
+    </main>
+  </body>
+</html>
+

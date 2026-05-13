@@ -38,6 +38,46 @@ class UploadWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login/", response["Location"])
 
+    def test_invoice_generator_requires_login(self):
+        response = self.client.get(reverse("dashboard:invoice_generator"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response["Location"])
+
+    def test_invoice_generator_page_renders(self):
+        self.login()
+
+        response = self.client.get(reverse("dashboard:invoice_generator"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invoice generator")
+        self.assertContains(response, 'name="invoice_type"')
+
+    def test_invoice_generator_downloads_parseable_fuel_csv(self):
+        self.login()
+
+        response = self.client.post(
+            reverse("dashboard:invoice_generator"),
+            {
+                "invoice_type": "fuel_invoice",
+                "invoice_date": "2026-05-01",
+                "invoice_number": "FUEL-9001",
+                "vendor": "Shell Oil Co. #123",
+                "gallons": "1200.000",
+                "amount": "3198.75",
+                "received_gallons": "1188.500",
+                "expected_amount": "3150.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="generated-fuel-invoice.csv"',
+        )
+        self.assertIn(b"Invoice Date,Invoice Number,Vendor,Gallons,Amount", response.content)
+
     def test_index_displays_upload_form(self):
         self.login()
 

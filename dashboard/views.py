@@ -23,10 +23,29 @@ from reconciliation.exports import (
     issues_to_accounting_adjustment_csv,
     issues_to_csv,
 )
+from reconciliation.invoice_generator import (
+    generate_expense_invoice_csv,
+    generate_fuel_invoice_csv,
+    generate_lottery_settlement_csv,
+)
 from reconciliation.types import ReconciliationIssue
 
 
 ALLOWED_UPLOAD_EXTENSIONS = {".csv", ".xlsx"}
+INVOICE_GENERATORS = {
+    "fuel_invoice": (
+        generate_fuel_invoice_csv,
+        "generated-fuel-invoice.csv",
+    ),
+    "expense": (
+        generate_expense_invoice_csv,
+        "generated-expense-invoice.csv",
+    ),
+    "lottery_settlement": (
+        generate_lottery_settlement_csv,
+        "generated-lottery-settlement.csv",
+    ),
+}
 
 
 @login_required
@@ -47,6 +66,34 @@ def index(request):
         return redirect("dashboard:run_detail", pk=run.pk)
 
     return render(request, "dashboard/index.html", _index_context())
+
+
+@login_required
+def invoice_generator(request):
+    if request.method == "POST":
+        invoice_type = request.POST.get("invoice_type", "")
+        generator_config = INVOICE_GENERATORS.get(invoice_type)
+        if generator_config is None:
+            messages.error(request, "Choose a supported invoice type.")
+            return render(request, "dashboard/invoice_generator.html", _invoice_generator_context())
+        generator, filename = generator_config
+        content = generator(request.POST)
+        response = HttpResponse(content, content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    return render(request, "dashboard/invoice_generator.html", _invoice_generator_context())
+
+
+def _invoice_generator_context():
+    return {
+        "page_title": "Invoice generator",
+        "invoice_types": [
+            ("fuel_invoice", "Fuel invoice"),
+            ("expense", "Expense bill"),
+            ("lottery_settlement", "Lottery settlement"),
+        ],
+    }
 
 
 def _index_context():
