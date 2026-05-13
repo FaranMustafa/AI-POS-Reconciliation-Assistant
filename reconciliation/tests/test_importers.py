@@ -30,6 +30,17 @@ class ImporterTests(unittest.TestCase):
             },
         )
 
+    def test_pos_daily_report_accepts_tab_delimited_pasted_text(self):
+        content = (
+            "Business Date\tClose ID\tCash Sales\tCard Sales\tFuel Sales\tLottery Net\tSuspended Sales\n"
+            "2026-05-01\tclose-1001\t421.55\t1290.10\t3200.00\t88.25\t0.00\n"
+        )
+
+        transactions = parse_pos_daily_report(content, source_import_id="import-pos")
+
+        self.assertEqual(len(transactions), 4)
+        self.assertEqual(transactions[0].external_ref, "close-1001")
+
     def test_card_bank_report_creates_deposit_transaction(self):
         content = (
             "Posted Date,Deposit Ref,Description,Amount\n"
@@ -130,4 +141,3 @@ class ImporterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

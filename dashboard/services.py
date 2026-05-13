@@ -1,8 +1,11 @@
+import csv
 from decimal import Decimal
+from io import BytesIO, StringIO
 from typing import Callable, Dict, Iterable, List, Sequence, Tuple
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
+from openpyxl import load_workbook
 
 from imports.models import (
     AuditEvent,
@@ -89,7 +92,7 @@ def process_uploaded_run(
             metadata={"source_type": source_type, "filename": uploaded_file.name},
         )
         try:
-            content = uploaded_file.read().decode("utf-8-sig")
+            content = _read_tabular_upload(uploaded_file)
             transactions = _parse_transactions(source_type, content, import_file)
             _persist_transactions(import_file, transactions)
             import_file.status = ImportFile.Status.PROCESSED
@@ -145,6 +148,39 @@ def process_uploaded_run(
     }
     run.save(update_fields=["summary", "updated_at"])
     return run
+
+
+class PastedTabularUpload:
+    def __init__(self, *, name: str, content: str):
+        self.name = name
+        self.content_type = "text/plain"
+        self._content = content.encode("utf-8")
+        self.size = len(self._content)
+
+    def read(self):
+        return self._content
+
+
+def _read_tabular_upload(uploaded_file) -> str:
+    raw = uploaded_file.read()
+    filename = (getattr(uploaded_file, "name", "") or "").lower()
+    content_type = getattr(uploaded_file, "content_type", "") or ""
+    if filename.endswith(".xlsx") or "spreadsheetml" in content_type:
+        return _xlsx_bytes_to_csv(raw)
+    return raw.decode("utf-8-sig")
+
+
+def _xlsx_bytes_to_csv(raw: bytes) -> str:
+    workbook = load_workbook(BytesIO(raw), data_only=True, read_only=True)
+    sheet = workbook.active
+    output = StringIO()
+    writer = csv.writer(output)
+    for row in sheet.iter_rows(values_only=True):
+        values = ["" if value is None else value for value in row]
+        if any(str(value).strip() for value in values):
+            writer.writerow(values)
+    workbook.close()
+    return output.getvalue()
 
 
 def _parse_transactions(

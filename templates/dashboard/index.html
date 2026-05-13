@@ -48,9 +48,9 @@
           </div>
 
           <label class="mt-6 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-            <span class="text-sm font-semibold">Choose a CSV file</span>
+            <span class="text-sm font-semibold">Choose a CSV or XLSX file</span>
             <span class="mt-1 text-sm text-slate-600">Pair with additional sources below to enable cross-source checks.</span>
-            <input class="mt-4 max-w-full text-sm" type="file" name="source_file" accept=".csv,text/csv">
+            <input class="mt-4 max-w-full text-sm" type="file" name="source_file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </label>
 
           <details class="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -66,9 +66,24 @@
                       <option value="{{ value }}">{{ label }}</option>
                     {% endfor %}
                   </select>
-                  <input class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm" type="file" name="multi_source_file" accept=".csv,text/csv">
+                  <input class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm" type="file" name="multi_source_file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                 </div>
               {% endfor %}
+            </div>
+          </details>
+
+          <details class="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
+            <summary class="cursor-pointer font-semibold text-slate-800">Paste tabular text</summary>
+            <p class="mt-2 text-slate-600">
+              Paste copied spreadsheet rows with a header line. Tab-delimited text from Excel or Google Sheets is supported.
+            </p>
+            <div class="mt-4 grid gap-3">
+              <select class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm" name="pasted_source_type">
+                {% for value, label in source_types %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+              <textarea class="min-h-32 rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm" name="pasted_content" placeholder="Business Date&#9;Close ID&#9;Cash Sales&#10;2026-05-01&#9;close-1001&#9;421.55"></textarea>
             </div>
           </details>
 

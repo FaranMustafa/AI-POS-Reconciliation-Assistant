@@ -8,7 +8,9 @@ from reconciliation.types import CanonicalTransaction
 
 
 def _rows(content: str) -> Iterable[Dict[str, str]]:
-    reader = csv.DictReader(StringIO(content))
+    sample = content[:2048]
+    dialect = csv.excel_tab if "\t" in sample and "," not in sample else csv.excel
+    reader = csv.DictReader(StringIO(content), dialect=dialect)
     for row in reader:
         if any((value or "").strip() for value in row.values()):
             yield {key.strip(): (value or "").strip() for key, value in row.items()}
@@ -232,4 +234,3 @@ def parse_lottery_settlement_report(content: str, source_import_id: str) -> List
             )
         )
     return transactions
-

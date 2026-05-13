@@ -2,6 +2,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from openpyxl import Workbook
 
 from imports.models import (
     AuditEvent,
@@ -189,6 +190,62 @@ class UploadWorkflowTests(TestCase):
                 category=ReconciliationIssueRecord.Category.SETTLEMENT_GAP,
             ).exists()
         )
+
+    def test_upload_xlsx_file_creates_import_run(self):
+        self.login()
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(
+            [
+                "Business Date",
+                "Close ID",
+                "Cash Sales",
+                "Card Sales",
+                "Fuel Sales",
+                "Lottery Net",
+                "Suspended Sales",
+            ]
+        )
+        sheet.append(["2026-05-01", "close-3001", 100, 200, 300, 10, 0])
+        buffer = __import__("io").BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        upload = SimpleUploadedFile(
+            "pos-daily.xlsx",
+            buffer.read(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {"source_type": ImportFile.SourceType.POS_DAILY, "source_file": upload},
+        )
+
+        run = ReconciliationRun.objects.get()
+        self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
+        self.assertEqual(ImportFile.objects.get().original_filename, "pos-daily.xlsx")
+        self.assertEqual(CanonicalTransactionRecord.objects.count(), 4)
+
+    def test_pasted_tabular_text_creates_import_run(self):
+        self.login()
+        pasted_content = (
+            "Business Date\tClose ID\tCash Sales\tCard Sales\tFuel Sales\tLottery Net\tSuspended Sales\n"
+            "2026-05-01\tclose-4001\t100.00\t200.00\t300.00\t10.00\t0.00\n"
+        )
+
+        response = self.client.post(
+            reverse("dashboard:index"),
+            {
+                "pasted_source_type": ImportFile.SourceType.POS_DAILY,
+                "pasted_content": pasted_content,
+            },
+        )
+
+        run = ReconciliationRun.objects.get()
+        self.assertRedirects(response, reverse("dashboard:run_detail", args=[run.pk]))
+        import_file = ImportFile.objects.get()
+        self.assertEqual(import_file.original_filename, "pasted-pos_daily.txt")
+        self.assertEqual(CanonicalTransactionRecord.objects.count(), 4)
 
     def test_accounting_adjustments_export_returns_csv(self):
         self.login()

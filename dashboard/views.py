@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from dashboard.services import (
     IMPORTERS,
+    PastedTabularUpload,
     get_user_tenant,
     process_uploaded_run,
 )
@@ -72,6 +73,23 @@ def _collect_uploads(request):
             messages.error(request, f"Unsupported source type: {source_type}.")
             return None
         uploads.append((source_type, uploaded_file))
+
+    if not uploads:
+        pasted_source_type = request.POST.get("pasted_source_type", "")
+        pasted_content = request.POST.get("pasted_content", "").strip()
+        if pasted_content:
+            if pasted_source_type not in IMPORTERS:
+                messages.error(request, "Choose a supported source type for pasted text.")
+                return None
+            uploads.append(
+                (
+                    pasted_source_type,
+                    PastedTabularUpload(
+                        name=f"pasted-{pasted_source_type}.txt",
+                        content=pasted_content,
+                    ),
+                )
+            )
 
     if not uploads:
         messages.error(

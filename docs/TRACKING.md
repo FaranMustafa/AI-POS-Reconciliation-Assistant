@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- Phase: MVP feature complete for CSV pipeline; XLSX/pasted-text and production hardening remain
-- Workspace state: Django project with CSV pipeline, persistence, exports, multi-source runs, and review workspace
+- Phase: MVP feature complete for file/pasted-text ingestion; async processing and production hardening remain
+- Workspace state: Django project with CSV/XLSX/pasted-text pipeline, persistence, exports, multi-source runs, and review workspace
 - Primary plan: `docs/superpowers/plans/2026-05-12-ai-pos-reconciliation-assistant.md`
 - Product scope: MVP for small retailers and accountants reconciling POS, cash, card, fuel, lottery, expenses, invoices, and WooCommerce exports
 - Test coverage: 44 Django tests + standalone reconciliation tests all green
@@ -13,7 +13,7 @@
 | ID | Milestone | Status | Exit Criteria |
 | --- | --- | --- | --- |
 | M0 | Project scaffold | Done | Django app boots locally, test runner works, dev dependency install succeeds |
-| M1 | Upload and parsing foundation | Done (CSV) | CSV importers (POS, card/bank, WooCommerce, fuel, lottery, expense) normalize into canonical transactions; XLSX/pasted text deferred |
+| M1 | Upload and parsing foundation | Done | CSV/XLSX/pasted-text importers (POS, card/bank, WooCommerce, fuel, lottery, expense) normalize into canonical transactions |
 | M2 | Reconciliation engine | Done | Rules detect settlement gaps, missing/orphan deposits, duplicate entries (incl. cross-source), suspended sales, lottery mismatches, WooCommerce/POS mismatches, fuel invoice variances |
 | M3 | Review workspace UI | Done | Upload multiple files in one run; run history, severity/category/status filters, issue resolve/dismiss/reopen actions |
 | M4 | Persistence and audit trail | Done | Imports, transactions, runs, issues, and audit events stored with tenant scoping; resolve/dismiss writes audit events |
@@ -42,7 +42,7 @@
 | T16 | Accounting adjustment CSV export and PDF-ready summary | Codex | Done | T11 |
 | T17 | Run history list page and severity/category/status filters on run detail | Codex | Done | T09 |
 | T18 | Issue resolve/dismiss/reopen endpoint with audit events | Codex | Done | T09, T10 |
-| T19 | XLSX and pasted-text ingestion (pandas/openpyxl) | Codex | Pending | T13 |
+| T19 | XLSX and pasted-text ingestion (openpyxl + tabular text) | Codex | Done | T13 |
 | T20 | Async run processing via Celery/Redis | Codex | Pending | T15 |
 
 ## Build Log
@@ -62,6 +62,7 @@
 | 2026-05-12 | Added accounting adjustment CSV export (`issues_to_accounting_adjustment_csv`) mapping issue categories to suggested accounts, plus a print/PDF-ready run summary template at `/runs/<id>/summary` with browser-print styling. |
 | 2026-05-12 | Added run history page at `/runs/`, severity/category/status filters on run detail, severity badge pills, and resolve/dismiss/reopen issue status endpoint that emits `ISSUE_RESOLVED` / `ISSUE_DISMISSED` audit events. Verified with `python3 manage.py test` (44 passing) and `python3 -m unittest discover -s reconciliation/tests` (23 passing). |
 | 2026-05-12 | Extended `parse_fuel_invoice_report` to read optional `Received Gallons` and `Expected Amount` columns so the fuel-variance engine rule can fire from CSV inputs. Added a `sample-data/` folder with six end-to-end CSVs (pos, bank, lottery, fuel, woocommerce, expenses) covering two business days and a README that enumerates the nine exceptions to expect. Simulated run produces 9/9 expected issues. Tests: 25 standalone + 45 Django, all green. |
+| 2026-05-13 | Added XLSX upload handling via `openpyxl`, tab-delimited pasted-text parsing, and dashboard pasted text controls. Targeted tests verify XLSX POS uploads create runs and pasted tabular text normalizes through the same importer path. |
 
 ## Risks
 
