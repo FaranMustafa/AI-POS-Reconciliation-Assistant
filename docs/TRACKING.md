@@ -48,6 +48,7 @@
 | T22 | Structured logging for imports, runs, and issue actions | Codex | Done | T12 |
 | T23 | Generate engine-compatible invoice CSVs | Codex | Done | T05, T13 |
 | T24 | Add primary navigation across upload, run history, and invoice generator pages | Codex | Done | T23 |
+| T25 | Split invoice generator into type-specific form panels | Codex | Done | T23 |
 
 ## Build Log
 
@@ -74,6 +75,7 @@
 | 2026-05-13 | Started T23 invoice generator for fuel invoice, expense bill, and lottery settlement CSV files that can be re-uploaded into the existing reconciliation engine. |
 | 2026-05-13 | Completed T23 invoice generator: authenticated `/invoice-generator/` page downloads fuel invoice, expense bill, and lottery settlement CSVs with headers accepted by the existing importers. Generator tests prove each CSV parses through the engine adapters. |
 | 2026-05-13 | Completed T24 routing polish: dashboard, run history, run detail, and invoice generator now expose visible links to the main app pages so users can reach `/invoice-generator/` without knowing the URL. |
+| 2026-05-13 | Completed T25 invoice-generator UX fix: fuel invoice, expense bill, and lottery settlement now render as separate selectable form panels instead of one combined form. |
 
 ## Risks
 

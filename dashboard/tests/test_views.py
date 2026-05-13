@@ -54,6 +54,12 @@ class UploadWorkflowTests(TestCase):
         self.assertContains(response, reverse("dashboard:index"))
         self.assertContains(response, reverse("dashboard:run_history"))
         self.assertContains(response, 'name="invoice_type"')
+        self.assertContains(response, 'data-invoice-panel="fuel_invoice"')
+        self.assertContains(response, 'data-invoice-panel="expense"')
+        self.assertContains(response, 'data-invoice-panel="lottery_settlement"')
+        self.assertContains(response, "Fuel invoice details")
+        self.assertContains(response, "Expense bill details")
+        self.assertContains(response, "Lottery settlement details")
 
     def test_invoice_generator_downloads_parseable_fuel_csv(self):
         self.login()

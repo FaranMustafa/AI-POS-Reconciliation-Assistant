@@ -30,18 +30,19 @@
 
       <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" method="post">
         {% csrf_token %}
-        <div class="grid gap-4 md:grid-cols-3">
+        <div class="grid gap-4 md:grid-cols-3" data-invoice-type-control>
           {% for value, label in invoice_types %}
             <label class="flex items-center gap-3 rounded-md border border-slate-200 p-3 text-sm">
-              <input class="h-4 w-4 accent-emerald-700" type="radio" name="invoice_type" value="{{ value }}" {% if forloop.first %}checked{% endif %}>
+              <input class="h-4 w-4 accent-emerald-700" type="radio" name="invoice_type" value="{{ value }}" data-invoice-type {% if forloop.first %}checked{% endif %}>
               <span>{{ label }}</span>
             </label>
           {% endfor %}
         </div>
 
-        <section class="mt-6 grid gap-4 md:grid-cols-2">
+        <section class="mt-6 grid gap-4 md:grid-cols-2" data-invoice-panel="fuel_invoice">
+          <h2 class="md:col-span-2 text-lg font-semibold">Fuel invoice details</h2>
           <label class="grid gap-1 text-sm">
-            <span class="font-medium">Invoice / settlement date</span>
+            <span class="font-medium">Invoice date</span>
             <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="invoice_date">
           </label>
           <label class="grid gap-1 text-sm">
@@ -70,7 +71,8 @@
           </label>
         </section>
 
-        <section class="mt-8 grid gap-4 md:grid-cols-2">
+        <section class="mt-6 hidden grid gap-4 md:grid-cols-2" data-invoice-panel="expense">
+          <h2 class="md:col-span-2 text-lg font-semibold">Expense bill details</h2>
           <label class="grid gap-1 text-sm">
             <span class="font-medium">Bill ID</span>
             <input class="rounded-md border border-slate-300 px-3 py-2" name="bill_id" placeholder="BILL-9001">
@@ -78,6 +80,14 @@
           <label class="grid gap-1 text-sm">
             <span class="font-medium">Bill date</span>
             <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="bill_date">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Vendor</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="vendor" placeholder="Acme Supplies LLC">
+          </label>
+          <label class="grid gap-1 text-sm">
+            <span class="font-medium">Amount</span>
+            <input class="rounded-md border border-slate-300 px-3 py-2" name="amount" placeholder="128.00">
           </label>
           <label class="grid gap-1 text-sm">
             <span class="font-medium">Payment method</span>
@@ -89,7 +99,8 @@
           </label>
         </section>
 
-        <section class="mt-8 grid gap-4 md:grid-cols-2">
+        <section class="mt-6 hidden grid gap-4 md:grid-cols-2" data-invoice-panel="lottery_settlement">
+          <h2 class="md:col-span-2 text-lg font-semibold">Lottery settlement details</h2>
           <label class="grid gap-1 text-sm">
             <span class="font-medium">Settlement date</span>
             <input class="rounded-md border border-slate-300 px-3 py-2" type="date" name="settlement_date">
@@ -113,5 +124,26 @@
         </button>
       </form>
     </main>
+    <script>
+      const invoiceTypeInputs = document.querySelectorAll("[data-invoice-type]");
+      const invoicePanels = document.querySelectorAll("[data-invoice-panel]");
+
+      function syncInvoicePanels() {
+        const checked = document.querySelector("[data-invoice-type]:checked");
+        const selectedType = checked ? checked.value : "fuel_invoice";
+        invoicePanels.forEach((panel) => {
+          const isActive = panel.dataset.invoicePanel === selectedType;
+          panel.classList.toggle("hidden", !isActive);
+          panel.querySelectorAll("input, select, textarea").forEach((field) => {
+            field.disabled = !isActive;
+          });
+        });
+      }
+
+      invoiceTypeInputs.forEach((input) => {
+        input.addEventListener("change", syncInvoicePanels);
+      });
+      syncInvoicePanels();
+    </script>
   </body>
 </html>
